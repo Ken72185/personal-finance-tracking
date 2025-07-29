@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pencatat Keuangan</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.2/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.2/firebase-auth-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.2/firebase-firestore-compat.min.js"></script>
+    <!-- Google reCAPTCHA -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            width: 100%;
+            max-width: 1200px;
+            min-height: 600px;
+        }
+
+        .auth-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 600px;
+            padding: 40px;
+        }
+
+        .auth-form {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .auth-form h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+            font-size: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e1e1;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 15px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-google {
+            background: #db4437;
+            color: white;
+        }
+
+        .btn-google:hover {
+            background: #c23321;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(219, 68, 55, 0.4);
+        }
+
+        .auth-switch {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .auth-switch a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .main-app {
+            display: none;
+            min-height: 600px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            padding: 30px;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            text-align: center;
+            border-left: 5px solid;
+        }
+
+        .income-card { border-left-color: #4CAF50; }
+        .expense-card { border-left-color: #f44336; }
+        .balance-card { border-left-color: #2196F3; }
+
+        .summary-card h3 {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .summary-card .amount {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .income-card .amount { color: #4CAF50; }
+        .expense-card .amount { color: #f44336; }
+        .balance-card .amount { color: #2196F3; }
+
+        .transaction-section {
+            grid-column: 1 / -1;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .section-header {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-header h2 {
+            color: #333;
+            font-size: 20px;
+        }
+
+        .add-transaction-form {
+            padding: 30px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 15px;
+            align-items: end;
+        }
+
+        .form-row input, .form-row select {
+            padding: 10px 12px;
+            border: 2px solid #e1e1e1;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-row input:focus, .form-row select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .add-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .add-btn:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+
+        .transactions-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .transaction-item {
+            padding: 20px 30px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.3s;
+        }
+
+        .transaction-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-details {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .transaction-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .transaction-category {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .transaction-date {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .transaction-amount {
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .transaction-amount.income {
+            color: #4CAF50;
+        }
+
+        .transaction-amount.expense {
+            color: #f44336;
+        }
+
+        .delete-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .transaction-item:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .delete-btn:hover {
+            background: #d32f2f;
+        }
+
+        .auto-save-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+
+        .auto-save-indicator.show {
+            opacity: 1;
+        }
+
+        .recaptcha-container {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .recaptcha-info {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            margin-top: 10px;
+            line-height: 1.4;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .transaction-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .delete-btn {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Auth Section -->
+        <div id="authSection" class="auth-container">
+            <div class="auth-form">
+                <h2 id="authTitle">Masuk</h2>
+                <form id="authForm">
+                    <div class="form-group" id="nameGroup" style="display: none;">
+                        <label for="name">Nama Lengkap</label>
+                        <input type="text" id="name" placeholder="Masukkan nama lengkap">
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" placeholder="Masukkan email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" placeholder="Masukkan password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="authSubmitBtn" disabled>Masuk</button>
+                    <div class="recaptcha-container">
+                        <div class="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI" data-callback="onRecaptchaSuccess" data-expired-callback="onRecaptchaExpired"></div>
+                    </div>
+                    <div class="recaptcha-info">
+                        Silakan verifikasi bahwa Anda bukan robot untuk melanjutkan
+                    </div>
+                    <button type="button" class="btn btn-google" onclick="loginWithGoogle()" id="googleLoginBtn" disabled>>
+                        <i class="fab fa-google"></i> Masuk dengan Google
+                    </button>
+                </form>
+                <div class="auth-switch">
+                    <span id="authSwitchText">Belum punya akun?</span>
+                    <a href="#" id="authSwitchLink" onclick="toggleAuthMode()">Daftar</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main App -->
+        <div id="mainApp" class="main-app">
+            <div class="header">
+                <h1><i class="fas fa-wallet"></i> Pencatat Keuangan</h1>
+                <div class="user-info">
+                    <span id="userName">Selamat datang!</span>
+                    <button class="logout-btn" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i> Keluar
+                    </button>
+                </div>
+            </div>
+
+            <div class="dashboard">
+                <div class="summary-card income-card">
+                    <h3>Total Pemasukan</h3>
+                    <div class="amount" id="totalIncome">Rp 0</div>
+                </div>
+                <div class="summary-card expense-card">
+                    <h3>Total Pengeluaran</h3>
+                    <div class="amount" id="totalExpense">Rp 0</div>
+                </div>
+                <div class="summary-card balance-card">
+                    <h3>Saldo</h3>
+                    <div class="amount" id="totalBalance">Rp 0</div>
+                </div>
+
+                <div class="transaction-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-plus-circle"></i> Tambah Transaksi</h2>
+                    </div>
+                    <div class="add-transaction-form">
+                        <div class="form-row">
+                            <div>
+                                <input type="text" id="transactionName" placeholder="Nama transaksi" required>
+                            </div>
+                            <div>
+                                <input type="number" id="transactionAmount" placeholder="Jumlah (Rp)" required>
+                            </div>
+                            <div>
+                                <select id="transactionType" required>
+                                    <option value="">Pilih Jenis</option>
+                                    <option value="income">Pemasukan</option>
+                                    <option value="expense">Pengeluaran</option>
+                                </select>
+                            </div>
+                            <div>
+                                <button type="button" class="add-btn" onclick="addTransaction()">
+                                    <i class="fas fa-plus"></i> Tambah
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="section-header">
+                        <h2><i class="fas fa-list"></i> Riwayat Transaksi</h2>
+                    </div>
+                    <div class="transactions-list" id="transactionsList">
+                        <div style="padding: 40px; text-align: center; color: #999;">
+                            <i class="fas fa-inbox" style="font-size: 40px; margin-bottom: 15px; display: block;"></i>
+                            Belum ada transaksi
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="auto-save-indicator" id="autoSaveIndicator">
+        <i class="fas fa-save"></i> Data tersimpan otomatis
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBqeU27ntegUOxJ2IRfHU7o6IDALxLeoCI",
+  authDomain: "personal-finance-trackin-73027.firebaseapp.com",
+  projectId: "personal-finance-trackin-73027",
+  storageBucket: "personal-finance-trackin-73027.firebasestorage.app",
+  messagingSenderId: "340862808230",
+  appId: "1:340862808230:web:de74c4e7e81f2cd7b54467",
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // reCAPTCHA Configuration
+        let recaptchaVerified = false;
+        
+        // reCAPTCHA callback functions
+        window.onRecaptchaSuccess = function(token) {
+            recaptchaVerified = true;
+            document.getElementById('authSubmitBtn').disabled = false;
+            document.getElementById('googleLoginBtn').disabled = false;
+            console.log('reCAPTCHA verified successfully');
+        };
+
+        window.onRecaptchaExpired = function() {
+            recaptchaVerified = false;
+            document.getElementById('authSubmitBtn').disabled = true;
+            document.getElementById('googleLoginBtn').disabled = true;
+            console.log('reCAPTCHA expired');
+        };
+
+        // App State
+        let currentUser = null;
+        let transactions = [];
+        let isLoginMode = true;
+
+        // Mock user database for email/password auth
+        let users = JSON.parse(localStorage.getItem('financeAppUsers') || '[]');
+
+        // Firebase Auth State Observer
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // User is signed in with Google
+                currentUser = {
+                    uid: user.uid,
+                    name: user.displayName || user.email.split('@')[0],
+                    email: user.email,
+                    photoURL: user.photoURL,
+                    loginMethod: 'google'
+                };
+                loadUserTransactions();
+                showMainApp();
+            } else {
+                // User is signed out
+                if (currentUser && currentUser.loginMethod === 'google') {
+                    currentUser = null;
+                    transactions = [];
+                    showAuthSection();
+                }
+            }
+        });
+
+        // Load user data if logged in (for email/password auth)
+        function loadUserData() {
+            const savedUser = localStorage.getItem('currentFinanceUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                if (currentUser.loginMethod !== 'google') {
+                    transactions = JSON.parse(localStorage.getItem(`transactions_${currentUser.email}`) || '[]');
+                    showMainApp();
+                }
+            }
+        }
+
+        // Load transactions from Firestore (for Google auth) or localStorage (for email auth)
+        async function loadUserTransactions() {
+            if (currentUser.loginMethod === 'google') {
+                try {
+                    const snapshot = await db.collection('transactions')
+                        .where('userId', '==', currentUser.uid)
+                        .orderBy('timestamp', 'desc')
+                        .get();
+                    
+                    transactions = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                } catch (error) {
+                    console.log('Firestore not available, using localStorage');
+                    transactions = JSON.parse(localStorage.getItem(`transactions_${currentUser.email}`) || '[]');
+                }
+            } else {
+                transactions = JSON.parse(localStorage.getItem(`transactions_${currentUser.email}`) || '[]');
+            }
+            updateSummary();
+            renderTransactions();
+        }
+
+        // Toggle between login and register
+        function toggleAuthMode() {
+            isLoginMode = !isLoginMode;
+            const authTitle = document.getElementById('authTitle');
+            const nameGroup = document.getElementById('nameGroup');
+            const authSubmitBtn = document.getElementById('authSubmitBtn');
+            const authSwitchText = document.getElementById('authSwitchText');
+            const authSwitchLink = document.getElementById('authSwitchLink');
+
+            if (isLoginMode) {
+                authTitle.textContent = 'Masuk';
+                nameGroup.style.display = 'none';
+                authSubmitBtn.textContent = 'Masuk';
+                authSwitchText.textContent = 'Belum punya akun?';
+                authSwitchLink.textContent = 'Daftar';
+            } else {
+                authTitle.textContent = 'Daftar';
+                nameGroup.style.display = 'block';
+                authSubmitBtn.textContent = 'Daftar';
+                authSwitchText.textContent = 'Sudah punya akun?';
+                authSwitchLink.textContent = 'Masuk';
+            }
+
+            // Reset reCAPTCHA when switching modes
+            if (typeof grecaptcha !== 'undefined') {
+                grecaptcha.reset();
+                recaptchaVerified = false;
+                authSubmitBtn.disabled = true;
+                document.getElementById('googleLoginBtn').disabled = true;
+            }
+        }
+
+        // Handle form submission
+        document.getElementById('authForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Check reCAPTCHA verification
+            if (!recaptchaVerified) {
+                alert('Harap verifikasi reCAPTCHA terlebih dahulu!');
+                return;
+            }
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const name = document.getElementById('name').value;
+
+            if (isLoginMode) {
+                // Login
+                const user = users.find(u => u.email === email && u.password === password);
+                if (user) {
+                    currentUser = user;
+                    localStorage.setItem('currentFinanceUser', JSON.stringify(currentUser));
+                    transactions = JSON.parse(localStorage.getItem(`transactions_${currentUser.email}`) || '[]');
+                    showMainApp();
+                    showAutoSaveIndicator('Berhasil masuk!');
+                } else {
+                    alert('Email atau password salah!');
+                }
+            } else {
+                // Register
+                if (users.find(u => u.email === email)) {
+                    alert('Email sudah terdaftar!');
+                    return;
+                }
+                
+                const newUser = { 
+                    name: name || email.split('@')[0], 
+                    email: email, 
+                    password: password,
+                    loginMethod: 'email'
+                };
+                users.push(newUser);
+                localStorage.setItem('financeAppUsers', JSON.stringify(users));
+                
+                currentUser = newUser;
+                localStorage.setItem('currentFinanceUser', JSON.stringify(currentUser));
+                transactions = [];
+                showMainApp();
+                showAutoSaveIndicator('Akun berhasil dibuat!');
+            }
+        });
+
+        // Google login with Firebase
+        async function loginWithGoogle() {
+            // Check reCAPTCHA verification
+            if (!recaptchaVerified) {
+                alert('Harap verifikasi reCAPTCHA terlebih dahulu!');
+                return;
+            }
+
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                provider.addScope('email');
+                provider.addScope('profile');
+                
+                const result = await auth.signInWithPopup(provider);
+                // User will be handled by onAuthStateChanged
+                showAutoSaveIndicator('Berhasil masuk dengan Google!');
+            } catch (error) {
+                console.error('Google login error:', error);
+                if (error.code === 'auth/popup-blocked') {
+                    alert('Popup diblokir! Harap izinkan popup untuk login dengan Google.');
+                } else if (error.code === 'auth/cancelled-popup-request') {
+                    // User cancelled, do nothing
+                } else {
+                    alert('Gagal masuk dengan Google. Pastikan Firebase sudah dikonfigurasi dengan benar.');
+                }
+            }
+        }
+
+        // Show main app
+        function showMainApp() {
+            document.getElementById('authSection').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            
+            // Update user info display
+            const userName = document.getElementById('userName');
+            if (currentUser.photoURL) {
+                userName.innerHTML = `
+                    <img src="${currentUser.photoURL}" alt="Profile" style="width: 32px; height: 32px; border-radius: 50%; margin-right: 10px; vertical-align: middle;">
+                    Halo, ${currentUser.name}!
+                `;
+            } else {
+                userName.textContent = `Halo, ${currentUser.name}!`;
+            }
+            
+            updateSummary();
+            renderTransactions();
+        }
+
+        // Show auth section
+        function showAuthSection() {
+            document.getElementById('authSection').style.display = 'flex';
+            document.getElementById('mainApp').style.display = 'none';
+            document.getElementById('authForm').reset();
+        }
+
+        // Logout
+        async function logout() {
+            if (currentUser && currentUser.loginMethod === 'google') {
+                try {
+                    await auth.signOut();
+                    // onAuthStateChanged will handle the rest
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    // Fallback
+                    currentUser = null;
+                    transactions = [];
+                    showAuthSection();
+                }
+            } else {
+                currentUser = null;
+                transactions = [];
+                localStorage.removeItem('currentFinanceUser');
+                showAuthSection();
+            }
+        }
+
+        // Add transaction
+        async function addTransaction() {
+            const name = document.getElementById('transactionName').value;
+            const amount = parseFloat(document.getElementById('transactionAmount').value);
+            const type = document.getElementById('transactionType').value;
+
+            if (!name || !amount || !type) {
+                alert('Harap lengkapi semua field!');
+                return;
+            }
+
+            const transaction = {
+                name: name,
+                amount: amount,
+                type: type,
+                date: new Date().toLocaleDateString('id-ID'),
+                timestamp: new Date().toISOString(),
+                userId: currentUser.uid || currentUser.email
+            };
+
+            // Add to local array first for immediate UI update
+            const tempId = Date.now();
+            const localTransaction = { ...transaction, id: tempId };
+            transactions.unshift(localTransaction);
+            
+            updateSummary();
+            renderTransactions();
+
+            // Save to Firestore if Google user, otherwise localStorage
+            if (currentUser.loginMethod === 'google') {
+                try {
+                    const docRef = await db.collection('transactions').add(transaction);
+                    // Update the local transaction with Firestore ID
+                    const index = transactions.findIndex(t => t.id === tempId);
+                    if (index !== -1) {
+                        transactions[index].id = docRef.id;
+                    }
+                } catch (error) {
+                    console.log('Firestore not available, using localStorage');
+                    localStorage.setItem(`transactions_${currentUser.email}`, JSON.stringify(transactions));
+                }
+            } else {
+                localStorage.setItem(`transactions_${currentUser.email}`, JSON.stringify(transactions));
+            }
+
+            // Clear form
+            document.getElementById('transactionName').value = '';
+            document.getElementById('transactionAmount').value = '';
+            document.getElementById('transactionType').value = '';
+
+            showAutoSaveIndicator('Transaksi berhasil ditambahkan!');
+        }
+
+        // Delete transaction
+        async function deleteTransaction(id) {
+            if (confirm('Yakin ingin menghapus transaksi ini?')) {
+                // Remove from local array first for immediate UI update
+                transactions = transactions.filter(t => t.id !== id);
+                updateSummary();
+                renderTransactions();
+
+                // Delete from Firestore if Google user, otherwise localStorage
+                if (currentUser.loginMethod === 'google') {
+                    try {
+                        await db.collection('transactions').doc(id).delete();
+                    } catch (error) {
+                        console.log('Firestore not available, using localStorage');
+                        localStorage.setItem(`transactions_${currentUser.email}`, JSON.stringify(transactions));
+                    }
+                } else {
+                    localStorage.setItem(`transactions_${currentUser.email}`, JSON.stringify(transactions));
+                }
+
+                showAutoSaveIndicator('Transaksi berhasil dihapus!');
+            }
+        }
+
+        // Update summary
+        function updateSummary() {
+            const income = transactions
+                .filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+            
+            const expense = transactions
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+            
+            const balance = income - expense;
+
+            document.getElementById('totalIncome').textContent = formatCurrency(income);
+            document.getElementById('totalExpense').textContent = formatCurrency(expense);
+            document.getElementById('totalBalance').textContent = formatCurrency(balance);
+        }
+
+        // Render transactions
+        function renderTransactions() {
+            const container = document.getElementById('transactionsList');
+            
+            if (transactions.length === 0) {
+                container.innerHTML = `
+                    <div style="padding: 40px; text-align: center; color: #999;">
+                        <i class="fas fa-inbox" style="font-size: 40px; margin-bottom: 15px; display: block;"></i>
+                        Belum ada transaksi
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = transactions.map(transaction => `
+                <div class="transaction-item">
+                    <div class="transaction-details">
+                        <div class="transaction-name">${transaction.name}</div>
+                        <div class="transaction-category">${transaction.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}</div>
+                        <div class="transaction-date">${transaction.date}</div>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <div class="transaction-amount ${transaction.type}">
+                            ${transaction.type === 'income' ? '+' : '-'}${formatCurrency(transaction.amount)}
+                        </div>
+                        <button class="delete-btn" onclick="deleteTransaction(${transaction.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Format currency
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(amount);
+        }
+
+        // Auto save
+        function autoSave() {
+            if (currentUser) {
+                localStorage.setItem(`transactions_${currentUser.email}`, JSON.stringify(transactions));
+            }
+        }
+
+        // Show auto save indicator
+        function showAutoSaveIndicator(message = 'Data tersimpan otomatis') {
+            const indicator = document.getElementById('autoSaveIndicator');
+            indicator.innerHTML = `<i class="fas fa-save"></i> ${message}`;
+            indicator.classList.add('show');
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 3000);
+        }
+
+        // Auto save every 30 seconds (for Google users to sync with Firestore)
+        setInterval(async () => {
+            if (currentUser && transactions.length > 0 && currentUser.loginMethod === 'google') {
+                try {
+                    // Sync any local changes to Firestore
+                    showAutoSaveIndicator('Sinkronisasi data...');
+                } catch (error) {
+                    console.log('Auto-sync failed, data saved locally');
+                }
+            } else if (currentUser && transactions.length > 0) {
+                localStorage.setItem(`transactions_${currentUser.email}`, JSON.stringify(transactions));
+                showAutoSaveIndicator();
+            }
+        }, 30000);
+
+        // Setup instructions for Firebase
+        window.addEventListener('load', () => {
+            // Add Firebase setup instructions
+            const setupDiv = document.createElement('div');
+            setupDiv.innerHTML = `
+                <div style="position: fixed; bottom: 20px; left: 20px; background: #333; color: white; padding: 15px; border-radius: 8px; font-size: 12px; max-width: 320px; z-index: 1000; opacity: 0.9;">
+                    <strong>Setup Requirements:</strong><br>
+                    1. <a href="https://console.firebase.google.com" target="_blank" style="color: #4CAF50;">Firebase Console</a> - Enable Auth & Firestore<br>
+                    2. <a href="https://www.google.com/recaptcha/admin" target="_blank" style="color: #4CAF50;">reCAPTCHA Console</a> - Dapatkan site key<br>
+                    3. Ganti firebaseConfig & reCAPTCHA site key<br>
+                    4. Tambahkan domain ke Authorized domains<br>
+                    <em>Demo menggunakan test keys</em><br>
+                    <button onclick="this.parentElement.remove()" style="background: #666; color: white; border: none; padding: 5px 10px; border-radius: 4px; margin-top: 10px; cursor: pointer;">Tutup</button>
+                </div>
+            `;
+            document.body.appendChild(setupDiv);
+
+            // Auto remove after 12 seconds
+            setTimeout(() => {
+                if (setupDiv.parentElement) {
+                    setupDiv.remove();
+                }
+            }, 12000);
+        });
+
+        // Load user data on page load
+        loadUserData();
+    </script>
+</body>
+</html>
