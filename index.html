@@ -944,30 +944,8 @@
             }
         }, 30000);
 
-        // Setup instructions for Firebase
-        window.addEventListener('load', () => {
-            // Add Firebase setup instructions
-            const setupDiv = document.createElement('div');
-            setupDiv.innerHTML = `
-                <div style="position: fixed; bottom: 20px; left: 20px; background: #333; color: white; padding: 15px; border-radius: 8px; font-size: 12px; max-width: 320px; z-index: 1000; opacity: 0.9;">
-                    <strong>Setup Requirements:</strong><br>
-                    1. <a href="https://console.firebase.google.com" target="_blank" style="color: #4CAF50;">Firebase Console</a> - Enable Auth & Firestore<br>
-                    2. <a href="https://www.google.com/recaptcha/admin" target="_blank" style="color: #4CAF50;">reCAPTCHA Console</a> - Dapatkan site key<br>
-                    3. Ganti firebaseConfig & reCAPTCHA site key<br>
-                    4. Tambahkan domain ke Authorized domains<br>
-                    <em>Demo menggunakan test keys</em><br>
-                    <button onclick="this.parentElement.remove()" style="background: #666; color: white; border: none; padding: 5px 10px; border-radius: 4px; margin-top: 10px; cursor: pointer;">Tutup</button>
-                </div>
-            `;
-            document.body.appendChild(setupDiv);
-
-            // Auto remove after 12 seconds
-            setTimeout(() => {
-                if (setupDiv.parentElement) {
-                    setupDiv.remove();
-                }
-            }, 12000);
-        });
+        
+        
 
         // Load user data on page load
         loadUserData();
